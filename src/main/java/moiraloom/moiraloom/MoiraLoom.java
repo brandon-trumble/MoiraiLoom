@@ -1,6 +1,6 @@
-package taskforge.taskforge;
+package moiraloom.moiraloom;
 
-import taskforge.taskforge.domain.TaskForgeStats;
+import moiraloom.moiraloom.domain.MoiraLoomStats;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.concurrent.*;
@@ -11,7 +11,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * TaskForge is a lightweight asynchronous job execution framework
+ * MoiraLoom is a lightweight asynchronous job execution framework
  * built on top of Java's {@link ExecutorService}.
  *
  * <p>It provides a simple configuration API for managing concurrent
@@ -40,8 +40,8 @@ import java.util.logging.Logger;
  *
  *     public static void main(String[] args) {
  *
- *         // Configure TaskForge
- *         TaskForge taskForge = new TaskForge("mainClassTest")
+ *         // Configure MoiraLoom
+ *         MoiraLoom moiraLoom = new MoiraLoom("mainClassTest")
  *                 .useVirtualThreads(true)
  *                 .maxConcurrentJobs(5)
  *                 .onTaskFailure(error -> {
@@ -50,7 +50,7 @@ import java.util.logging.Logger;
  *                 .build();
  *
  *         // Submit an asynchronous job
- *         Future<?> future = taskForge.submit(() -> {
+ *         Future<?> future = moiraLoom.submit(() -> {
  *             System.out.println("Executing job...");
  *         });
  *
@@ -58,12 +58,12 @@ import java.util.logging.Logger;
  *        // Job failures invoke the configured failure callback.
  *        // Detailed exception logging is optional.
  *        // Call future.get() to observe a job failure as an ExecutionException.
- *         taskForge.submit(() -> {
+ *         moiraLoom.submit(() -> {
  *             System.out.println("Test");
  *         });
  *
  *         // Shut down the executor
- *         taskForge.close();
+ *         moiraLoom.close();
  *     }
  * }
  * }</pre>
@@ -76,8 +76,8 @@ import java.util.logging.Logger;
  *
  *     public static void main(String[] args) {
  *
- *         // Configure TaskForge
- *         try(TaskForge taskForge = new TaskForge("mainClassTest")
+ *         // Configure MoiraLoom
+ *         try(MoiraLoom moiraLoom = new MoiraLoom("mainClassTest")
  *                 .useVirtualThreads(true)
  *                 .maxConcurrentJobs(5)
  *                 .onTaskFailure(error -> {
@@ -86,7 +86,7 @@ import java.util.logging.Logger;
  *                 .build()) {
  *
  *         // Submit an asynchronous job
- *         Future<?> future = taskForge.submit(() -> {
+ *         Future<?> future = moiraLoom.submit(() -> {
  *             System.out.println("Executing job...");
  *         });
  *
@@ -94,7 +94,7 @@ import java.util.logging.Logger;
  *         // NOTE: .submit() logs(optionally) errors and throws the exception
  *         // it's a good idea to surround these with try / catch blocks or
  *         // just call the future.get() method with a try / catch block.
- *         taskForge.submit(() -> {
+ *         moiraLoom.submit(() -> {
  *             System.out.println("Test");
  *          });
  *        }
@@ -104,7 +104,7 @@ import java.util.logging.Logger;
  *
  * <h2>Thread Management</h2>
  *
- * <p>When virtual threads are enabled, TaskForge uses
+ * <p>When virtual threads are enabled, MoiraLoom uses
  * {@link Executors#newVirtualThreadPerTaskExecutor()}.
  * Otherwise, it uses a fixed thread pool.</p>
  *
@@ -118,13 +118,13 @@ import java.util.logging.Logger;
  *
  * @see ExecutorService
  * @see Semaphore
- * @see TaskForgeJob
+ * @see MoiraLoomJob
  */
-public class TaskForge implements AutoCloseable {
+public class MoiraLoom implements AutoCloseable {
 
     private int maxConcurrentJobs;
 
-    private final Logger logger = Logger.getLogger(TaskForge.class.getName());
+    private final Logger logger = Logger.getLogger(MoiraLoom.class.getName());
 
     private ExecutorService executorService;
 
@@ -140,7 +140,7 @@ public class TaskForge implements AutoCloseable {
 
     Semaphore semaphore;
 
-    private final String taskForgeName;
+    private final String moiraLoomName;
 
     private boolean useDetailedErrorLogging;
 
@@ -148,8 +148,8 @@ public class TaskForge implements AutoCloseable {
 
     private Consumer<Throwable> failureHandler;
 
-    public TaskForge(String taskForgeName) {
-        this.taskForgeName = taskForgeName;
+    public MoiraLoom(String moiraLoomName) {
+        this.moiraLoomName = moiraLoomName;
     }
 
     /**
@@ -162,9 +162,9 @@ public class TaskForge implements AutoCloseable {
      * of semaphore permits rather than the number of threads created.</p>
      *
      * @param maxConcurrentJobs the maximum number of concurrent jobs
-     * @return this TaskForge instance for method chaining
+     * @return this MoiraLoom instance for method chaining
      */
-    public synchronized TaskForge maxConcurrentJobs(int maxConcurrentJobs) {
+    public synchronized MoiraLoom maxConcurrentJobs(int maxConcurrentJobs) {
         if (!built.get()) {
             this.maxConcurrentJobs = maxConcurrentJobs;
             return this;
@@ -176,17 +176,17 @@ public class TaskForge implements AutoCloseable {
     /**
      * Enables or disables virtual thread execution.
      *
-     * <p>When enabled, TaskForge creates an executor using
+     * <p>When enabled, MoiraLoom creates an executor using
      * {@link Executors#newVirtualThreadPerTaskExecutor()}.</p>
      *
-     * <p>When disabled, TaskForge uses a fixed thread pool
+     * <p>When disabled, MoiraLoom uses a fixed thread pool
      * configured by {@link #maxConcurrentJobs(int)}.</p>
      *
      * @param useVirtualThreads true to enable virtual threads,
      *                          false to use platform threads
-     * @return this TaskForge instance for method chaining
+     * @return this MoiraLoom instance for method chaining
      */
-    public synchronized TaskForge useVirtualThreads(boolean useVirtualThreads) {
+    public synchronized MoiraLoom useVirtualThreads(boolean useVirtualThreads) {
         if (!built.get()) {
             this.useVirtualThreads = useVirtualThreads;
             return this;
@@ -220,10 +220,10 @@ public class TaskForge implements AutoCloseable {
     }
 
     /**
-     * Useful for viewing current TaskForge objects statistics. Such as:
+     * Useful for viewing current MoiraLoom objects statistics. Such as:
      * <br>
      * <ul>
-     *     <li>Name of the TaskForge thread pool</li>
+     *     <li>Name of the MoiraLoom thread pool</li>
      *     <li>Current jobs running</li>
      *     <li>Max allowed thread allocation</li>
      *     <li>If the threads are Virtual threads</li>
@@ -231,15 +231,15 @@ public class TaskForge implements AutoCloseable {
      *     <li>Total jobs failed</li>
      * </ul>
      * <br>
-     * @apiNote Since the TaskForge api is async by default, getStats may return delayed data
+     * @apiNote Since the MoiraLoom api is async by default, getStats may return delayed data
      * (since this will return immediate while the other threads will take longer). Please use a Future and use get()
      * in order to get accurate stats(It blocks the calling thread it's finished).
-     * @return TaskForgeStats object.
-     * @see TaskForgeStats
+     * @return MoiraLoomStats object.
+     * @see MoiraLoomStats
      */
-    public TaskForgeStats getStats() {
-        return new TaskForgeStats(
-                    taskForgeName,
+    public MoiraLoomStats getStats() {
+        return new MoiraLoomStats(
+                    moiraLoomName,
                     jobsCurrentlyRunning.get(),
                     maxConcurrentJobs,
                     useVirtualThreads,
@@ -258,9 +258,9 @@ public class TaskForge implements AutoCloseable {
      *     <li>Failure cause</li>
      * </ul>
      * @param useDetailedErrorLogging Boolean
-     * @return TaskForge object with the useDetailedErrorLogging field edited.
+     * @return MoiraLoom object with the useDetailedErrorLogging field edited.
      */
-    public synchronized TaskForge useDetailedErrorLogging(boolean useDetailedErrorLogging) {
+    public synchronized MoiraLoom useDetailedErrorLogging(boolean useDetailedErrorLogging) {
         if (!built.get()) {
             this.useDetailedErrorLogging = useDetailedErrorLogging;
             return this;
@@ -273,9 +273,9 @@ public class TaskForge implements AutoCloseable {
      * A way for users to implement custom logic if the task fails, ie: stop hosting on a port,
      * stop running a database query, etc. The handler is then accepted in a private method in this class
      * which runs when the task / job fails which then runs handler.accept(failure)
-     * @return TaskForge object with the taskFailureJob edited
+     * @return MoiraLoom object with the taskFailureJob edited
      */
-    public synchronized TaskForge onTaskFailure(Consumer<Throwable> handler) {
+    public synchronized MoiraLoom onTaskFailure(Consumer<Throwable> handler) {
         if (built.get()) {
             throw new IllegalStateException("Please set .onTaskFailure() before calling .build()");
         }
@@ -311,7 +311,7 @@ public class TaskForge implements AutoCloseable {
         }
 
     /**
-     * Initializes TaskForge using the configured settings.
+     * Initializes MoiraLoom using the configured settings.
      *
      * <p>This method creates the appropriate {@link ExecutorService},
      * initializes the {@link Semaphore}, and registers a JVM
@@ -325,23 +325,23 @@ public class TaskForge implements AutoCloseable {
      * commenced execution.</p>
      *
      * <p>This method must be called before submitting jobs and
-     * can only be called once per TaskForge instance.</p>
+     * can only be called once per MoiraLoom instance.</p>
      *
-     * @return this initialized TaskForge instance
+     * @return this initialized MoiraLoom instance
      *
-     * @throws IllegalStateException if TaskForge has already been built
+     * @throws IllegalStateException if MoiraLoom has already been built
      * @throws IllegalArgumentException if maxConcurrentJobs is
      *                                  less than or equal to zero
      *
-     * @see #submit(TaskForgeJob)
+     * @see #submit(MoiraLoomJob)
      * @see #close()
      */
-    public synchronized TaskForge build() {
+    public synchronized MoiraLoom build() {
 
         // Prevent multiple build calls
         if (built.get()) {
             throw new IllegalStateException(
-                    "You cannot call build more than once per TaskForge initialization"
+                    "You cannot call build more than once per MoiraLoom initialization"
             );
         }
 
@@ -365,7 +365,7 @@ public class TaskForge implements AutoCloseable {
                     maxConcurrentJobs,
                     Thread.ofPlatform()
                             .daemon(true)
-                            .name("taskforge-", 0)
+                            .name("moiraLoom-", 0)
                             .factory()
             );
         }
@@ -414,7 +414,7 @@ public class TaskForge implements AutoCloseable {
      * <h3>Example</h3>
      *
      * <pre>{@code
-     * Future<?> future = taskForge.submit(() -> {
+     * Future<?> future = MoiraLoom.submit(() -> {
      *     System.out.println("Running asynchronous job");
      * });
      *
@@ -423,22 +423,22 @@ public class TaskForge implements AutoCloseable {
      *
      * // Or just let the .submit() handle failures instead
      * // .submit() propegates errors via logs and throws the Exception
-     * taskForge.submit(() -> {
+     * moiraLoom.submit(() -> {
      *    System.out.println("Running async job.");
      * });
      * }</pre>
      *
      * @param job the job to execute asynchronously
      * @return a Future representing the submitted job
-     * @see TaskForgeJob
+     * @see MoiraLoomJob
      * @see Future
      * @see Semaphore
      */
-    public Future<?> submit(TaskForgeJob job) {
+    public Future<?> submit(MoiraLoomJob job) {
 
         Objects.requireNonNull(job, "job");
 
-        // Ensure TaskForge has been initialized
+        // Ensure MoiraLoom has been initialized
         if (!built.get()) {
             throw new IllegalStateException(
                     "You must call .build() before calling .submit()"
@@ -448,7 +448,7 @@ public class TaskForge implements AutoCloseable {
         // check that the max jobs are not full / taken
         if (!semaphore.tryAcquire()) {
             throw new RejectedExecutionException(
-                    "TaskForge job queue is currently full"
+                    "MoiraLoom job queue is currently full"
             );
         }
 
@@ -485,13 +485,13 @@ public class TaskForge implements AutoCloseable {
     }
 
     /**
-     * Closes the TaskForge executor service.
+     * Closes the MoiraLoom executor service.
      *
      * <p>This method calls {@link ExecutorService#close()},
      * which initiates an orderly shutdown and waits for submitted
      * tasks to complete.</p>
      *
-     * <p>Users may call this method manually when TaskForge is
+     * <p>Users may call this method manually when MoiraLoom is
      * no longer needed. A JVM shutdown hook is also registered
      * as a fallback for application termination.</p>
      *
@@ -501,7 +501,7 @@ public class TaskForge implements AutoCloseable {
      * <p>This method also removes the shutdown hooks that are registered when it's
      *    called.</p>
      *
-     * @throws IllegalStateException if TaskForge has not been built
+     * @throws IllegalStateException if MoiraLoom has not been built
      *
      * @see ExecutorService#close()
      */

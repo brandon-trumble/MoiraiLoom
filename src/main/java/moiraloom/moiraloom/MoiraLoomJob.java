@@ -1,15 +1,15 @@
-package taskforge.taskforge;
+package moiraloom.moiraloom;
 
 /**
- * Represents a job that can be submitted to TaskForge for execution.
+ * Represents a job that can be submitted to MoiraLoom for execution.
  *
  * <p>Implement this interface and override the {@link #run()} method
  * to define a reusable job instead of submitting a lambda.</p>
  *
- * <h2>Example 1: Implementing TaskForgeJob in a class</h2>
+ * <h2>Example 1: Implementing MoiraLoomJob in a class</h2>
  *
  * <pre>{@code
- * public class TestClass implements TaskForgeJob {
+ * public class TestClass implements MoiraLoomJob {
  *
  *     @Override
  *     public void run() {
@@ -22,15 +22,15 @@ package taskforge.taskforge;
  * }
  * }</pre>
  *
- * <p>Then instantiate and submit the job to TaskForge:</p>
+ * <p>Then instantiate and submit the job to MoiraLoom:</p>
  *
  * <pre>{@code
  * public class Main {
  *
  *     public static void main(String[] args) {
  *
- *         // Configure and build TaskForge
- *         TaskForge taskForge = new TaskForge()
+ *         // Configure and build MoiraLoom
+ *         MoiraLoom moiraLoom = new MoiraLoom()
  *                 .useVirtualThreads(true)
  *                 .maxConcurrentJobs(2)
  *                 .build();
@@ -39,17 +39,17 @@ package taskforge.taskforge;
  *         TestClass testClass = new TestClass();
  *
  *         // Submit the job
- *         taskForge.submit(testClass);
+ *         moiraLoom.submit(testClass);
  *
  *         // Shut down the executor when finished
- *         taskForge.close();
+ *         moiraLoom.close();
  *     }
  * }
  * }</pre>
  *
  * <h2>Example 2: Using an anonymous class</h2>
  *
- * <p>For simpler jobs, create a TaskForgeJob directly without
+ * <p>For simpler jobs, create a MoiraLoomJob directly without
  * implementing it in a separate class.</p>
  *
  * <pre>{@code
@@ -57,7 +57,7 @@ package taskforge.taskforge;
  *
  *     public static void main(String[] args) {
  *
- *         TaskForgeJob taskForgeJob = new TaskForgeJob() {
+ *         MoiraLoomJob moiraLoomJob = new MoiraLoomJob() {
  *
  *             @Override
  *             public void run() {
@@ -65,26 +65,26 @@ package taskforge.taskforge;
  *             }
  *         };
  *
- *         // Configure and build TaskForge
- *         TaskForge taskForge = new TaskForge()
+ *         // Configure and build MoiraLoom
+ *         MoiraLoom moiraLoom = new MoiraLoom()
  *                 .useVirtualThreads(true)
  *                 .maxConcurrentJobs(2)
  *                 .build();
  *
  *         // Submit the job
- *         taskForge.submit(taskForgeJob);
+ *         moiraLoom.submit(moiraLoomJob);
  *
  *         // Shut down the executor
- *         taskForge.close();
+ *         moiraLoom.close();
  *     }
  * }
  * }</pre>
  *
  * @see Runnable
- * @see TaskForge
+ * @see MoiraLoom
  */
 @FunctionalInterface
-public interface TaskForgeJob extends Runnable {
+public interface MoiraLoomJob extends Runnable {
 
     /**
      * Executes the task defined by this job.

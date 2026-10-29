@@ -1,7 +1,7 @@
-package taskforge.taskforge.domain;
+package moiraloom.moiraloom.domain;
 
-public record TaskForgeStats(
-        String taskForgeName,
+public record MoiraLoomStats(
+        String moiraLoomName,
 
         int currentRunningJobs,
 

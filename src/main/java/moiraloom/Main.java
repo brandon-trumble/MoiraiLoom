@@ -1,14 +1,14 @@
-package taskforge;
+package moiraloom;
 
-import taskforge.taskforge.TaskForge;
-import taskforge.taskforge.TestClass;
+import moiraloom.moiraloom.MoiraLoom;
+import moiraloom.moiraloom.TestClass;
 
 import java.util.concurrent.Future;
 
 public class Main {
     static void main() {
 
-       TaskForge taskForge = new TaskForge("mainClassThreads")
+       MoiraLoom taskForge = new MoiraLoom("mainClassThreads")
                 .maxConcurrentJobs(2)
                 .onTaskFailure(error -> {
                     System.out.println(error.getMessage());

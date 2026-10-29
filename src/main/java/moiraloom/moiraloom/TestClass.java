@@ -1,6 +1,6 @@
-package taskforge.taskforge;
+package moiraloom.moiraloom;
 
-public class TestClass implements TaskForgeJob {
+public class TestClass implements MoiraLoomJob {
 
     @Override
     public void run() {
