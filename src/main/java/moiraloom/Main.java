@@ -17,10 +17,10 @@ public class Main {
 
        TestClass testClass = new TestClass();
 
-        Future<?> task = moiraLoom.submit(testClass);
 
        try {
-          System.out.println(moiraLoom.getStats());
+           moiraLoom.submit(testClass).get();
+           System.out.println(moiraLoom.getStats());
        } catch (Exception ignore) {
 
        }

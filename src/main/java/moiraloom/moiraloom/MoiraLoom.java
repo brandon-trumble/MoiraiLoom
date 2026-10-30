@@ -426,6 +426,14 @@ public class MoiraLoom implements AutoCloseable {
      * moiraLoom.submit(() -> {
      *    System.out.println("Running async job.");
      * });
+     *
+     * // Optional is to use a .get() on the end of the .submit(), example:
+     * moiraLoom.submit(() -> {
+     *     System.out.println("Running async job.");
+     * }).get();
+     *
+     * // Then check the statistics of the running job / jobs
+     * System.out.println(moiraLoom.getStats());
      * }</pre>
      *
      * @param job the job to execute asynchronously
