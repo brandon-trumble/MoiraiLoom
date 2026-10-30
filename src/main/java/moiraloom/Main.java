@@ -8,7 +8,7 @@ import java.util.concurrent.Future;
 public class Main {
     static void main() {
 
-       MoiraLoom taskForge = new MoiraLoom("mainClassThreads")
+       MoiraLoom moiraLoom = new MoiraLoom("mainClassThreads")
                 .maxConcurrentJobs(2)
                 .onTaskFailure(error -> {
                     System.out.println(error.getMessage());
@@ -17,15 +17,15 @@ public class Main {
 
        TestClass testClass = new TestClass();
 
-        Future<?> task = taskForge.submit(testClass);
+        Future<?> task = moiraLoom.submit(testClass);
 
        try {
-          System.out.println(taskForge.getStats());
+          System.out.println(moiraLoom.getStats());
        } catch (Exception ignore) {
 
        }
 
 
-       taskForge.close();
+       moiraLoom.close();
     }
 }
