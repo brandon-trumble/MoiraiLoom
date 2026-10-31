@@ -124,6 +124,8 @@ public class MoiraLoom implements AutoCloseable {
 
     private int maxConcurrentJobs;
 
+    private int maxPendingJobs;
+
     private final Logger logger = Logger.getLogger(MoiraLoom.class.getName());
 
     private ExecutorService executorService;
@@ -138,7 +140,13 @@ public class MoiraLoom implements AutoCloseable {
 
     private final AtomicInteger jobsFailed = new AtomicInteger(0);
 
-    Semaphore semaphore;
+    private final AtomicInteger jobsPending = new AtomicInteger(0);
+
+    private final AtomicInteger jobsCancelled = new AtomicInteger(0);
+
+    Semaphore maxConcurrentJobsSemaphore;
+
+    Semaphore maxPendingJobsSemaphore;
 
     private final String moiraLoomName;
 
@@ -159,7 +167,7 @@ public class MoiraLoom implements AutoCloseable {
      * the size of the fixed thread pool.</p>
      *
      * <p>When using virtual threads, this value controls the number
-     * of semaphore permits rather than the number of threads created.</p>
+     * of maxConcurrentJobsSemaphore permits rather than the number of threads created.</p>
      *
      * @param maxConcurrentJobs the maximum number of concurrent jobs
      * @return this MoiraLoom instance for method chaining
@@ -167,6 +175,35 @@ public class MoiraLoom implements AutoCloseable {
     public synchronized MoiraLoom maxConcurrentJobs(int maxConcurrentJobs) {
         if (!built.get()) {
             this.maxConcurrentJobs = maxConcurrentJobs;
+            return this;
+        } else {
+            throw new IllegalStateException("You cannot change the maxConcurrentJobs value after the object is built");
+        }
+    }
+
+    /**
+     * Configures additional admission capacity beyond the concurrent
+     * execution limit.
+     *
+     * <p>Total admission capacity is
+     * {@code maxConcurrentJobs + maxPendingJobs}. A value of zero
+     * provides no additional capacity beyond the concurrency limit.</p>
+     *
+     * <p>This setting is not an independent limit on the pending-job
+     * counter. Accepted jobs may briefly remain pending while workers
+     * are starting, even when execution permits are available.</p>
+     *
+     * <p>The value must be non-negative. Validation occurs when
+     * {@link #build()} is called.</p>
+     *
+     * @param maxPendingJobs the additional admission capacity
+     * @return this instance for method chaining
+     * @throws IllegalStateException if this instance has already
+     *         been built
+     */
+    public synchronized MoiraLoom maxPendingJobs(int maxPendingJobs) {
+        if (!built.get()) {
+            this.maxPendingJobs= maxPendingJobs;
             return this;
         } else {
             throw new IllegalStateException("You cannot change the maxConcurrentJobs value after the object is built");
@@ -220,21 +257,21 @@ public class MoiraLoom implements AutoCloseable {
     }
 
     /**
-     * Useful for viewing current MoiraLoom objects statistics. Such as:
-     * <br>
-     * <ul>
-     *     <li>Name of the MoiraLoom thread pool</li>
-     *     <li>Current jobs running</li>
-     *     <li>Max allowed thread allocation</li>
-     *     <li>If the threads are Virtual threads</li>
-     *     <li>Total jobs completed</li>
-     *     <li>Total jobs failed</li>
-     * </ul>
-     * <br>
-     * @apiNote Since the MoiraLoom api is async by default, getStats may return delayed data
-     * (since this will return immediate while the other threads will take longer). Please use a Future and use get()
-     * in order to get accurate stats(It blocks the calling thread it's finished).
-     * @return MoiraLoomStats object.
+     * Returns a best-effort snapshot of this instance's statistics.
+     *
+     * <p>The snapshot contains the instance name, concurrency limit,
+     * execution mode, running-job count, completed-job count, and
+     * failed-job count. Pending and canceled counts are not included
+     * in the current statistics object.</p>
+     *
+     * <p>Counters are read independently while other threads may
+     * update them. The returned values therefore do not necessarily
+     * describe one exact instant.</p>
+     *
+     * <p>This method does not wait for jobs to finish. Waiting for
+     * one job's future does not wait for other submitted jobs.</p>
+     *
+     * @return a statistics snapshot
      * @see MoiraLoomStats
      */
     public MoiraLoomStats getStats() {
@@ -279,7 +316,9 @@ public class MoiraLoom implements AutoCloseable {
         if (built.get()) {
             throw new IllegalStateException("Please set .onTaskFailure() before calling .build()");
         }
+
         this.failureHandler = Objects.requireNonNull(handler, "handler");
+
         return this;
     }
 
@@ -311,29 +350,36 @@ public class MoiraLoom implements AutoCloseable {
         }
 
     /**
-     * Initializes MoiraLoom using the configured settings.
+     * Initializes this instance using the configured settings.
      *
-     * <p>This method creates the appropriate {@link ExecutorService},
-     * initializes the {@link Semaphore}, and registers a JVM
-     * shutdown hook. We use daemon threads so the
-     * work that is being processed may not save or
-     * finish running if the application is forcefully
-     * shutdown or interrupted.</p>
+     * <p>Creates the executor, initializes the execution and admission
+     * semaphores, and registers a JVM shutdown hook. Configuration
+     * cannot be changed after a successful build.</p>
      *
-     * <p>The shutdown hook calls {@code shutdownNow()} to request
-     * interruption of running jobs and returns tasks that never
-     * commenced execution.</p>
+     * <p>Virtual-thread mode uses
+     * {@link Executors#newVirtualThreadPerTaskExecutor()}.
+     * Platform-thread mode uses a fixed pool of daemon threads
+     * sized according to {@link #maxConcurrentJobs(int)}.</p>
      *
-     * <p>This method must be called before submitting jobs and
-     * can only be called once per MoiraLoom instance.</p>
+     * <p>The shutdown hook calls {@link ExecutorService#close()}.
+     * This normally waits for accepted work to finish, but does not
+     * provide durable storage or protection against abrupt process
+     * termination.</p>
      *
-     * @return this initialized MoiraLoom instance
+     * <p>This method must complete successfully before jobs can be
+     * submitted. An instance cannot be built again after a successful
+     * build, including after it has been closed.</p>
      *
-     * @throws IllegalStateException if MoiraLoom has already been built
-     * @throws IllegalArgumentException if maxConcurrentJobs is
-     *                                  less than or equal to zero
+     * @return this initialized instance
+     * @throws IllegalStateException if this instance has already
+     *         been built
+     * @throws IllegalArgumentException if {@code maxConcurrentJobs}
+     *         is not positive or {@code maxPendingJobs} is negative
+     * @throws ArithmeticException if the combined admission capacity
+     *         exceeds {@link Integer#MAX_VALUE}
      *
      * @see #submit(MoiraLoomJob)
+     * @see #submit(Callable)
      * @see #close()
      */
     public synchronized MoiraLoom build() {
@@ -352,9 +398,11 @@ public class MoiraLoom implements AutoCloseable {
             );
         }
 
-        if (failureHandler == null) {
-            throw new IllegalStateException("Please set .onTaskFailure()'s runnable");
-
+        // Validate pending task configuration
+        if (maxPendingJobs < 0) {
+            throw new IllegalArgumentException(
+                    "maxPendingJobs cannot be negative"
+            );
         }
 
         // Initialize the appropriate executor
@@ -370,18 +418,22 @@ public class MoiraLoom implements AutoCloseable {
             );
         }
 
-        // Limit concurrent job execution
-        semaphore = new Semaphore(maxConcurrentJobs);
+        maxConcurrentJobsSemaphore = new Semaphore(
+                maxConcurrentJobs, true
+        );
+
+        maxPendingJobsSemaphore = new Semaphore(
+                Math.addExact(maxConcurrentJobs, maxPendingJobs), true
+        );
 
         // Register a JVM shutdown hook
-        shutdownHook = (new Thread(() -> {
-            int pendingJobs = executorService.shutdownNow().size();
+        shutdownHook = new Thread(() -> {
+            logger.info("Shutting down MoiraLoom");
 
-            logger.log(
-                    Level.INFO,
-                    "Returned " + pendingJobs + " pending jobs."
-            );
-        }));
+            executorService.close();
+
+            logger.info("MoiraLoom shutdown complete");
+        });
 
         Runtime.getRuntime().addShutdownHook(shutdownHook);
 
@@ -391,125 +443,250 @@ public class MoiraLoom implements AutoCloseable {
     }
 
     /**
-     * Submits a job for asynchronous execution.
+     * Submits a job that does not produce a result.
      *
-     * <p>A semaphore permit is reserved before submission to the configured
-     * {@link ExecutorService}. If no permit is available, this method
-     * immediately throws {@link RejectedExecutionException} without
-     * waiting for capacity.</p>
+     * <p>The job executes asynchronously. The returned {@link Future}
+     * can be used to wait for completion, observe execution failures,
+     * or request cancellation. Its {@link Future#get() get()} method
+     * returns {@code null} on successful completion.</p>
      *
-     * <p>The limit configured through {@link #maxConcurrentJobs(int)}
-     * applies to accepted jobs that have not yet finished, including
-     * jobs that have been submitted but have not started executing.</p>
-     *
-     * <p>If executor submission fails, the reserved permit is returned.
-     * Once the job starts, its permit is released in a {@code finally}
-     * block when execution finishes, including when the job throws.</p>
-     *
-     * <p>If the job throws a {@link RuntimeException}, the exception is
-     * logged and captured by the returned {@link Future}. Calling
-     * {@link Future#get()} reports the failure through an
-     * {@link ExecutionException}.</p>
+     * <p>This method delegates to {@link #submit(Callable)} and uses
+     * the same capacity limits, failure handling, and cancellation
+     * behavior.</p>
      *
      * <h3>Example</h3>
      *
      * <pre>{@code
-     * Future<?> future = MoiraLoom.submit(() -> {
-     *     System.out.println("Running asynchronous job");
+     * Future<?> future = moiraLoom.submit(() -> {
+     *     System.out.println("Running a background job");
      * });
-     *
-     * // Wait for completion and observe any execution failure
-     * future.get();
-     *
-     * // Or just let the .submit() handle failures instead
-     * // .submit() propegates errors via logs and throws the Exception
-     * moiraLoom.submit(() -> {
-     *    System.out.println("Running async job.");
-     * });
-     *
-     * // Optional is to use a .get() on the end of the .submit(), example:
-     * moiraLoom.submit(() -> {
-     *     System.out.println("Running async job.");
-     * }).get();
-     *
-     * // Then check the statistics of the running job / jobs
-     * System.out.println(moiraLoom.getStats());
      * }</pre>
      *
-     * @param job the job to execute asynchronously
-     * @return a Future representing the submitted job
-     * @see MoiraLoomJob
+     * @param job the job to execute
+     * @return a future representing the job's completion
+     * @throws NullPointerException if {@code job} is {@code null}
+     * @throws IllegalStateException if {@link #build()} has not
+     *         completed successfully
+     * @throws RejectedExecutionException if admission capacity is
+     *         exhausted or the executor no longer accepts work
+     *
+     * @see #submit(Callable)
      * @see Future
-     * @see Semaphore
      */
     public Future<?> submit(MoiraLoomJob job) {
-
         Objects.requireNonNull(job, "job");
 
-        // Ensure MoiraLoom has been initialized
+        Callable<Void> callable = () -> {
+            job.run();
+            return null;
+        };
+
+        return submit(callable);
+    }
+
+    /**
+     * Submits a result-producing job for asynchronous execution.
+     *
+     * <p>The job's {@link Callable#call() call()} method executes on
+     * an executor-managed thread. This method returns a {@link Future}
+     * without waiting for the job to finish.</p>
+     *
+     * <h3>Capacity and concurrency</h3>
+     *
+     * <p>Total admission capacity is the sum of
+     * {@link #maxConcurrentJobs(int) maxConcurrentJobs} and
+     * {@link #maxPendingJobs(int) maxPendingJobs}. Each submission
+     * must reserve one admission permit before entering the executor.
+     * If no permit is available, submission is rejected immediately.</p>
+     *
+     * <p>Accepted workers wait for an execution permit before invoking
+     * the job. No more than {@code maxConcurrentJobs} job bodies may
+     * execute simultaneously.</p>
+     *
+     * <h3>Results and failures</h3>
+     *
+     * <p>Calling {@link Future#get() get()} waits for completion and
+     * returns the value produced by the job, which may be {@code null}.
+     * An execution failure is reported through an
+     * {@link ExecutionException}, unless the future was cancelled.</p>
+     *
+     * <p>Execution failures are not thrown directly to the thread
+     * that called this submission method.</p>
+     *
+     * <p>Exceptions and errors caught during execution are recorded
+     * and passed to the configured failure handler, except for
+     * {@link InterruptedException}. An interruption restores the
+     * worker's interrupt status and is propagated without invoking
+     * the failure handler or incrementing the failed-job counter.</p>
+     *
+     * <p>If the configured failure handler throws, its exception
+     * can replace the original execution failure reported by
+     * the future.</p>
+     *
+     * <h3>Cancellation</h3>
+     *
+     * <p>The returned future supports {@link Future#cancel(boolean)}.
+     * Requesting interruption does not guarantee that executing
+     * job code stops; the job must cooperate with interruption.</p>
+     *
+     * <p>Cancellation cleanup returns admission capacity when it
+     * claims a still-pending job. Once execution has claimed the job,
+     * its capacity remains reserved until execution cleanup runs.</p>
+     *
+     * <p>With virtual threads, cancelling without interruption can
+     * leave an already-waiting worker blocked until an execution
+     * permit becomes available.</p>
+     *
+     * <h3>Example</h3>
+     *
+     * <pre>{@code
+     * Future<Integer> future = moiraLoom.submit(() -> {
+     *     int subtotal = 120;
+     *     int shipping = 15;
+     *     return subtotal + shipping;
+     * });
+     *
+     * try {
+     *     int total = future.get();
+     *     System.out.println(total);
+     * } catch (InterruptedException e) {
+     *     Thread.currentThread().interrupt();
+     * } catch (ExecutionException e) {
+     *     System.err.println("Job failed: " + e.getCause());
+     * } catch (CancellationException e) {
+     *     System.out.println("Job was cancelled");
+     * }
+     * }</pre>
+     *
+     * @param <T> the type of result produced by the job
+     * @param job the job to execute
+     * @return a future providing access to the job's result,
+     *         completion status, and cancellation
+     * @throws NullPointerException if {@code job} is {@code null}
+     * @throws IllegalStateException if {@link #build()} has not
+     *         completed successfully
+     * @throws RejectedExecutionException if admission capacity is
+     *         exhausted or the executor no longer accepts work
+     *
+     * @see #submit(MoiraLoomJob)
+     * @see Callable
+     * @see Future
+     */
+    public <T> Future<T> submit(Callable<T> job) {
+        Objects.requireNonNull(job, "job");
+
         if (!built.get()) {
             throw new IllegalStateException(
-                    "You must call .build() before calling .submit()"
+                    "Call .build() before .submit()"
             );
         }
 
-        // check that the max jobs are not full / taken
-        if (!semaphore.tryAcquire()) {
+        if (!maxPendingJobsSemaphore.tryAcquire()) {
             throw new RejectedExecutionException(
-                    "MoiraLoom job queue is currently full"
+                    "MoiraLoom job capacity is full"
             );
         }
+
+        jobsPending.incrementAndGet();
+
+        AtomicBoolean pending = new AtomicBoolean(true);
+
+        // Return capacity only if execution has not claimed this job.
+        Runnable releasePending = () -> {
+            if (pending.compareAndSet(true, false)) {
+                jobsPending.decrementAndGet();
+                maxPendingJobsSemaphore.release();
+            }
+        };
+
+        FutureTask<T> task = new FutureTask<>(() -> {
+            boolean acquired = false;
+            boolean started = false;
+
+            try {
+                maxConcurrentJobsSemaphore.acquire();
+                acquired = true;
+
+                // Skip user code if cancellation already claimed the job.
+                if (!pending.compareAndSet(true, false)) {
+                    return null;
+                }
+
+                started = true;
+                jobsPending.decrementAndGet();
+                jobsCurrentlyRunning.incrementAndGet();
+
+                T result = job.call();
+                jobsCompleted.incrementAndGet();
+
+                return result;
+
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw e;
+
+            } catch (Exception | Error e) {
+                executeJobFailure(e);
+                throw e;
+
+            } finally {
+                if (started) {
+                    jobsCurrentlyRunning.decrementAndGet();
+                    maxPendingJobsSemaphore.release();
+                } else {
+                    releasePending.run();
+                }
+
+                if (acquired) {
+                    maxConcurrentJobsSemaphore.release();
+                }
+            }
+        }) {
+            @Override
+            protected void done() {
+                if (isCancelled()) {
+                    jobsCancelled.incrementAndGet();
+                    releasePending.run();
+
+                    if (executorService instanceof ThreadPoolExecutor pool) {
+                        pool.remove(this);
+                    }
+                }
+            }
+        };
 
         try {
-            return executorService.submit(() -> {
+            executorService.execute(task);
+            return task;
 
-                try {
-
-                    jobsCurrentlyRunning.incrementAndGet();
-
-                    // Execute the submitted job
-                    job.run();
-
-                    jobsCompleted.incrementAndGet();
-
-                } catch (RuntimeException e) {
-
-                    executeJobFailure(e);
-                    throw e;
-
-                } finally {
-
-                    jobsCurrentlyRunning.decrementAndGet();
-
-                    semaphore.release();
-
-                }
-            });
-        } catch (Exception e) {
-            executeJobFailure(e);
-            semaphore.release();
+        } catch (RuntimeException | Error e) {
+            releasePending.run();
             throw e;
         }
     }
 
     /**
-     * Closes the MoiraLoom executor service.
+     * Stops accepting new jobs and waits for executor termination.
      *
-     * <p>This method calls {@link ExecutorService#close()},
-     * which initiates an orderly shutdown and waits for submitted
-     * tasks to complete.</p>
+     * <p>Delegates to {@link ExecutorService#close()}, which normally
+     * allows previously accepted work to finish before returning.</p>
      *
-     * <p>Users may call this method manually when MoiraLoom is
-     * no longer needed. A JVM shutdown hook is also registered
-     * as a fallback for application termination.</p>
+     * <p>If the calling thread is interrupted while waiting, the
+     * executor attempts to interrupt executing work and does not
+     * execute work still awaiting execution. It continues waiting
+     * for termination and restores the caller's interrupt status.</p>
      *
-     * <p>Calling this method prevents any new jobs from being
-     * submitted to the executor.</p>
+     * <p>This method has no timeout. Jobs that do not terminate can
+     * prevent it from returning. Do not call this method from a job
+     * executing on this instance, because it can wait for its own
+     * completion.</p>
      *
-     * <p>This method also removes the shutdown hooks that are registered when it's
-     *    called.</p>
+     * <p>After executor termination, this method attempts to remove
+     * the registered shutdown hook. The instance cannot be rebuilt
+     * or reused for new submissions.</p>
      *
-     * @throws IllegalStateException if MoiraLoom has not been built
+     * @throws IllegalStateException if {@link #build()} has not
+     *         completed successfully
      *
      * @see ExecutorService#close()
      */

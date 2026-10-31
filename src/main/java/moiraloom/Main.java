@@ -10,17 +10,19 @@ public class Main {
 
        MoiraLoom moiraLoom = new MoiraLoom("mainClassThreads")
                 .maxConcurrentJobs(2)
-                .onTaskFailure(error -> {
-                    System.out.println(error.getMessage());
-                })
+                .maxPendingJobs(10)
+               .useDetailedErrorLogging(true)
                 .build();
 
        TestClass testClass = new TestClass();
 
 
        try {
-           moiraLoom.submit(testClass).get();
-           System.out.println(moiraLoom.getStats());
+           Future<Integer> job = moiraLoom.submit(() -> 1 + 1);
+
+           int total = job.get();
+
+           System.out.println(total);
        } catch (Exception ignore) {
 
        }
