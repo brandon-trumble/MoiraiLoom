@@ -1,15 +1,15 @@
-package moiraloom.moiraloom;
+package moirailoom.moirailoom;
 
 /**
- * Represents a job that can be submitted to MoiraLoom for execution.
+ * Represents a job that can be submitted to MoiraiLoom for execution.
  *
  * <p>Implement this interface and override the {@link #run()} method
  * to define a reusable job instead of submitting a lambda.</p>
  *
- * <h2>Example 1: Implementing MoiraLoomJob in a class</h2>
+ * <h2>Example 1: Implementing MoiraiLoomJob in a class</h2>
  *
  * <pre>{@code
- * public class TestClass implements MoiraLoomJob {
+ * public class TestClass implements MoiraiLoomJob {
  *
  *     @Override
  *     public void run() {
@@ -22,15 +22,15 @@ package moiraloom.moiraloom;
  * }
  * }</pre>
  *
- * <p>Then instantiate and submit the job to MoiraLoom:</p>
+ * <p>Then instantiate and submit the job to MoiraiLoom:</p>
  *
  * <pre>{@code
  * public class Main {
  *
  *     public static void main(String[] args) {
  *
- *         // Configure and build MoiraLoom
- *         MoiraLoom moiraLoom = new MoiraLoom()
+ *         // Configure and build MoiraiLoom
+ *         MoiraiLoom moiraiLoom = new MoiraiLoom()
  *                 .useVirtualThreads(true)
  *                 .maxConcurrentJobs(2)
  *                 .build();
@@ -39,17 +39,17 @@ package moiraloom.moiraloom;
  *         TestClass testClass = new TestClass();
  *
  *         // Submit the job
- *         moiraLoom.submit(testClass);
+ *         moiraiLoom.submit(testClass);
  *
  *         // Shut down the executor when finished
- *         moiraLoom.close();
+ *         moiraiLoom.close();
  *     }
  * }
  * }</pre>
  *
  * <h2>Example 2: Using an anonymous class</h2>
  *
- * <p>For simpler jobs, create a MoiraLoomJob directly without
+ * <p>For simpler jobs, create a MoiraiLoomJob directly without
  * implementing it in a separate class.</p>
  *
  * <pre>{@code
@@ -57,7 +57,7 @@ package moiraloom.moiraloom;
  *
  *     public static void main(String[] args) {
  *
- *         MoiraLoomJob moiraLoomJob = new MoiraLoomJob() {
+ *         MoiraiLoomJob moiraiLoomJob = new MoiraiLoomJob() {
  *
  *             @Override
  *             public void run() {
@@ -65,26 +65,26 @@ package moiraloom.moiraloom;
  *             }
  *         };
  *
- *         // Configure and build MoiraLoom
- *         MoiraLoom moiraLoom = new MoiraLoom()
+ *         // Configure and build MoiraiLoom
+ *         MoiraiLoom moiraiLoom = new MoiraiLoom()
  *                 .useVirtualThreads(true)
  *                 .maxConcurrentJobs(2)
  *                 .build();
  *
  *         // Submit the job
- *         moiraLoom.submit(moiraLoomJob);
+ *         moiraiLoom.submit(moiraiLoomJob);
  *
  *         // Shut down the executor
- *         moiraLoom.close();
+ *         moiraiLoom.close();
  *     }
  * }
  * }</pre>
  *
  * @see Runnable
- * @see MoiraLoom
+ * @see MoiraiLoom
  */
 @FunctionalInterface
-public interface MoiraLoomJob extends Runnable {
+public interface MoiraiLoomJob extends Runnable {
 
     /**
      * Executes the task defined by this job.

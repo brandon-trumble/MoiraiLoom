@@ -1,8 +1,8 @@
-package moiraloom.moiraloom;
+package moirailoom.moirailoom;
 
 import java.util.Random;
 
-public class TestClass implements MoiraLoomJob {
+public class TestClass implements MoiraiLoomJob {
 
     @Override
     public void run() {

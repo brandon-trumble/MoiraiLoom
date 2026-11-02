@@ -1,7 +1,7 @@
-package moiraloom.moiraloom.domain;
+package moirailoom.moirailoom.domain;
 
-public record MoiraLoomStats(
-        String moiraLoomName,
+public record MoiraiLoomStats(
+        String moiraiLoomName,
 
         int currentRunningJobs,
 

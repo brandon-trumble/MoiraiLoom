@@ -1,7 +1,7 @@
-package moiraLoom.failureTests;
+package moiraiLoom.failureTests;
 
-import moiraloom.moiraloom.MoiraLoom;
-import moiraloom.moiraloom.MoiraLoomJob;
+import moirailoom.moirailoom.MoiraiLoom;
+import moirailoom.moirailoom.MoiraiLoomJob;
 import org.junit.Test;
 
 import java.util.concurrent.ExecutionException;
@@ -13,10 +13,10 @@ import static org.junit.Assert.*;
 public class ExceptionFailureTest {
 
     /**
-     * The MoiraLoom .submit throws a ExecutionException if the job throws an exception
+     * The MoiraiLoom .submit throws a ExecutionException if the job throws an exception
      * during it's execution
      */
-    private static class TestException implements MoiraLoomJob {
+    private static class TestException implements MoiraiLoomJob {
         @Override
         public void run() {
             throw new RuntimeException("test");
@@ -27,7 +27,7 @@ public class ExceptionFailureTest {
     public void testFailures() {
         AtomicReference<Throwable> capturedFailure = new AtomicReference<>();
 
-        try (MoiraLoom moiraLoom = new MoiraLoom("exceptionTest")
+        try (MoiraiLoom moiraiLoom = new MoiraiLoom("exceptionTest")
                 .maxPendingJobs(3)
                 .maxConcurrentJobs(2)
                 .onTaskFailure(capturedFailure::set)
@@ -37,12 +37,12 @@ public class ExceptionFailureTest {
 
             ExecutionException exception = assertThrows(
                     ExecutionException.class,
-                    () -> moiraLoom.submit(testException).get(5, TimeUnit.SECONDS)
+                    () -> moiraiLoom.submit(testException).get(5, TimeUnit.SECONDS)
             );
 
             assertEquals("test", exception.getCause().getMessage());
             assertSame(exception.getCause(), capturedFailure.get());
-            assertEquals(1, moiraLoom.getTotalFailedJobs());
+            assertEquals(1, moiraiLoom.getTotalFailedJobs());
         }
     }
 }

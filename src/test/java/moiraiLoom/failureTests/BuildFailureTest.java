@@ -1,6 +1,6 @@
-package moiraLoom.failureTests;
+package moiraiLoom.failureTests;
 
-import moiraloom.moiraloom.MoiraLoom;
+import moirailoom.moirailoom.MoiraiLoom;
 import org.junit.Test;
 
 import static org.junit.Assert.assertThrows;
@@ -11,29 +11,29 @@ public class BuildFailureTest {
     public void testBuildFailure() {
 
         assertThrows(IllegalStateException.class, () -> {
-            MoiraLoom moiraLoom = new MoiraLoom("moiraLoomMaxConcurrentNotSet")
+            MoiraiLoom moiraiLoom = new MoiraiLoom("moiraiLoomMaxConcurrentNotSet")
                     .maxPendingJobs(2)
                     .build();
 
-            moiraLoom.close();
+            moiraiLoom.close();
         });
 
         assertThrows(IllegalStateException.class, () -> {
-           MoiraLoom moiraLoom = new MoiraLoom("moiraLoomMaxPendingNotSet")
+           MoiraiLoom moiraiLoom = new MoiraiLoom("moiraiLoomMaxPendingNotSet")
                    .maxConcurrentJobs(2)
                    .build();
 
-           moiraLoom.close();
+           moiraiLoom.close();
         });
 
         assertThrows(IllegalStateException.class, () -> {
-           MoiraLoom moiraLoom = new MoiraLoom("submitBeforeBuild");
+           MoiraiLoom moiraiLoom = new MoiraiLoom("submitBeforeBuild");
 
-           moiraLoom.submit(() -> {
+           moiraiLoom.submit(() -> {
                System.out.println("THIS SHOULD NOT RUN!!! CHECK BuildTestFailureTest.java");
            });
 
-           moiraLoom.close();
+           moiraiLoom.close();
         });
     }
 }

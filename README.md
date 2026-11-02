@@ -1,6 +1,6 @@
-# MoiraLoom
+# MoiraiLoom
 
-MoiraLoom is a Java 21 library for running background jobs with
+MoiraiLoom is a Java 21 library for running background jobs with
 configurable concurrency and queue capacity.
 
 It provides a small API for submitting work, getting results, handling
@@ -26,18 +26,18 @@ You can then add it to another Maven project's `pom.xml`, inside its
 ```xml
 <dependency>
     <groupId>io.github.brandon-trumble</groupId>
-    <artifactId>moiraloom</artifactId>
+    <artifactId>moirailoom</artifactId>
     <version>0.1.0</version>
 </dependency>
 ```
 
 ## Usage
 
-Save this example as `Main.java` in a project using MoiraLoom:
+Save this example as `Main.java` in a project using MoiraiLoom:
 
 ```java
-import moiraloom.moiraloom.MoiraLoom;
-import moiraloom.moiraloom.MoiraLoomJob;
+import moirailoom.moirailoom.MoiraiLoom;
+import moirailoom.moirailoom.MoiraiLoomJob;
 
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -49,8 +49,8 @@ public class Main {
     // However it is a good way to organize and build your code base
     public static void main(String[] args) {
 
-        // Configure and build MoiraLoom
-        MoiraLoom moiraLoom = new MoiraLoom("mainClassThreads")
+        // Configure and build MoiraiLoom
+        MoiraiLoom moiraiLoom = new MoiraiLoom("mainClassThreads")
                 .maxConcurrentJobs(2)
                 .maxPendingJobs(10)
                 .useVirtualThreads(true)
@@ -61,7 +61,7 @@ public class Main {
                 .build();
 
         // submit a test job
-        moiraLoom.submit(() -> {
+        moiraiLoom.submit(() -> {
             System.out.println("Test job");
         });
 
@@ -70,10 +70,10 @@ public class Main {
         TestJob testJob = new TestJob();
 
 
-        // submit a preset class(MoiraLoomJob implementation)
-        moiraLoom.submit(testJob);
+        // submit a preset class(MoiraiLoomJob implementation)
+        moiraiLoom.submit(testJob);
 
-        moiraLoom.close();
+        moiraiLoom.close();
         
         // if you want the stats of the current running jobs
         // create a Future and call .get() and then call 
@@ -81,7 +81,7 @@ public class Main {
 
     }
 
-    private static class TestJob implements MoiraLoomJob {
+    private static class TestJob implements MoiraiLoomJob {
 
         @Override
         public void run() {
@@ -91,14 +91,14 @@ public class Main {
 }
 ```
 
-This example submits two jobs: a reusable `MoiraLoomJob` and a lambda that
+This example submits two jobs: a reusable `MoiraiLoomJob` and a lambda that
 returns a value.
 
 `submit()` returns a `Future` without waiting for the job to finish.
 Calling `get()` waits for that job and returns its result. Jobs without
 a return value produce `null`.
 
-The try-with-resources block closes MoiraLoom when it ends, waiting for
+The try-with-resources block closes MoiraiLoom when it ends, waiting for
 accepted work to finish.
 
 ## Configuration
@@ -121,7 +121,7 @@ be built once, including after it has been closed.
 
 ### Platform threads
 
-Platform threads are used by default. MoiraLoom creates a fixed pool of
+Platform threads are used by default. MoiraiLoom creates a fixed pool of
 daemon threads sized by `maxConcurrentJobs`.
 
 ### Virtual threads
@@ -148,7 +148,7 @@ later, skip the work, or report that it is busy.
 
 ## Reusable jobs
 
-Implement `MoiraLoomJob` when a job belongs in its own class. Its `run()`
+Implement `MoiraiLoomJob` when a job belongs in its own class. Its `run()`
 method contains the work, as shown by `ReportJob` in the example.
 
 You can also submit lambdas directly. Lambdas that return a value use
@@ -171,7 +171,7 @@ If the failure callback throws, its exception can replace the original
 failure reported by the future.
 
 An `InterruptedException` during execution is handled separately.
-MoiraLoom restores the worker's interrupt status without invoking the
+MoiraiLoom restores the worker's interrupt status without invoking the
 failure callback or incrementing the failed-job counter.
 
 Enable `useDetailedErrorLogging(true)` to include exception details and
@@ -211,7 +211,7 @@ try-with-resources as shown in the example.
 Closing stops new submissions and normally waits for accepted work to
 finish.
 
-If the thread waiting in `close()` is interrupted, MoiraLoom requests
+If the thread waiting in `close()` is interrupted, MoiraiLoom requests
 worker interruption and cancels tasks drained from the executor queue.
 It continues waiting for termination, then restores the caller's
 interrupt status.
@@ -230,6 +230,6 @@ Run the tests with:
 mvn test
 ```
 
-MoiraLoom is under active development. Bug reports, suggestions, and
+MoiraiLoom is under active development. Bug reports, suggestions, and
 examples that reproduce unexpected behavior are welcome through
 GitHub issues.

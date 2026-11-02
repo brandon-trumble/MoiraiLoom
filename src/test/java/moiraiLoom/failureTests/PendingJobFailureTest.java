@@ -1,7 +1,7 @@
-package moiraLoom.failureTests;
+package moiraiLoom.failureTests;
 
-import moiraloom.moiraloom.MoiraLoom;
-import moiraloom.moiraloom.MoiraLoomJob;
+import moirailoom.moirailoom.MoiraiLoom;
+import moirailoom.moirailoom.MoiraiLoomJob;
 import org.junit.Test;
 
 import java.util.concurrent.RejectedExecutionException;
@@ -12,7 +12,7 @@ public class PendingJobFailureTest {
 
     @Test
     public void testMaxPendingJobs() {
-        MoiraLoom moiraLoom = new MoiraLoom("testMaxPendingJobs")
+        MoiraiLoom moiraiLoom = new MoiraiLoom("testMaxPendingJobs")
                 .maxConcurrentJobs(1)
                 .maxPendingJobs(2)
                 .onTaskFailure(error -> {
@@ -20,7 +20,7 @@ public class PendingJobFailureTest {
                 })
                 .build();
 
-        MoiraLoomJob job = new MoiraLoomJob() {
+        MoiraiLoomJob job = new MoiraiLoomJob() {
             @Override
             public void run() {
                 try {
@@ -31,13 +31,13 @@ public class PendingJobFailureTest {
             }
         };
 
-        moiraLoom.submit(job);
+        moiraiLoom.submit(job);
 
-        moiraLoom.submit(job);
+        moiraiLoom.submit(job);
 
-        moiraLoom.submit(job);
+        moiraiLoom.submit(job);
 
-        assertThrows(RejectedExecutionException.class, () -> moiraLoom.submit(job));
+        assertThrows(RejectedExecutionException.class, () -> moiraiLoom.submit(job));
 
     }
 }

@@ -1,6 +1,6 @@
-package moiraloom.moiraloom;
+package moirailoom.moirailoom;
 
-import moiraloom.moiraloom.domain.MoiraLoomStats;
+import moirailoom.moirailoom.domain.MoiraiLoomStats;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.concurrent.*;
@@ -11,7 +11,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * MoiraLoom is a lightweight asynchronous job execution framework
+ * MoiraiLoom is a lightweight asynchronous job execution framework
  * built on top of Java's {@link ExecutorService}.
  *
  * <p>It provides a simple configuration API for managing concurrent
@@ -40,8 +40,8 @@ import java.util.logging.Logger;
  *
  *     public static void main(String[] args) {
  *
- *         // Configure MoiraLoom
- *         MoiraLoom moiraLoom = new MoiraLoom("mainClassTest")
+ *         // Configure MoiraiLoom
+ *         MoiraiLoom moiraiLoom = new MoiraiLoom("mainClassTest")
  *                 .useVirtualThreads(true)
  *                 .maxConcurrentJobs(5)
  *                 .onTaskFailure(error -> {
@@ -50,7 +50,7 @@ import java.util.logging.Logger;
  *                 .build();
  *
  *         // Submit an asynchronous job
- *         Future<?> future = moiraLoom.submit(() -> {
+ *         Future<?> future = moiraiLoom.submit(() -> {
  *             System.out.println("Executing job...");
  *         });
  *
@@ -58,12 +58,12 @@ import java.util.logging.Logger;
  *        // Job failures invoke the configured failure callback.
  *        // Detailed exception logging is optional.
  *        // Call future.get() to observe a job failure as an ExecutionException.
- *         moiraLoom.submit(() -> {
+ *         moiraiLoom.submit(() -> {
  *             System.out.println("Test");
  *         });
  *
  *         // Shut down the executor
- *         moiraLoom.close();
+ *         moiraiLoom.close();
  *     }
  * }
  * }</pre>
@@ -76,8 +76,8 @@ import java.util.logging.Logger;
  *
  *     public static void main(String[] args) {
  *
- *         // Configure MoiraLoom
- *         try(MoiraLoom moiraLoom = new MoiraLoom("mainClassTest")
+ *         // Configure MoiraiLoom
+ *         try(MoiraiLoom moiraiLoom = new MoiraiLoom("mainClassTest")
  *                 .useVirtualThreads(true)
  *                 .maxConcurrentJobs(5)
  *                 .onTaskFailure(error -> {
@@ -86,7 +86,7 @@ import java.util.logging.Logger;
  *                 .build()) {
  *
  *         // Submit an asynchronous job
- *         Future<?> future = moiraLoom.submit(() -> {
+ *         Future<?> future = moiraiLoom.submit(() -> {
  *             System.out.println("Executing job...");
  *         });
  *
@@ -94,7 +94,7 @@ import java.util.logging.Logger;
  *         // NOTE: .submit() logs(optionally) errors and throws the exception
  *         // it's a good idea to surround these with try / catch blocks or
  *         // just call the future.get() method with a try / catch block.
- *         moiraLoom.submit(() -> {
+ *         moiraiLoom.submit(() -> {
  *             System.out.println("Test");
  *          });
  *        }
@@ -104,7 +104,7 @@ import java.util.logging.Logger;
  *
  * <h2>Thread Management</h2>
  *
- * <p>When virtual threads are enabled, MoiraLoom uses
+ * <p>When virtual threads are enabled, MoiraiLoom uses
  * {@link Executors#newVirtualThreadPerTaskExecutor()}.
  * Otherwise, it uses a fixed thread pool.</p>
  *
@@ -118,15 +118,15 @@ import java.util.logging.Logger;
  *
  * @see ExecutorService
  * @see Semaphore
- * @see MoiraLoomJob
+ * @see MoiraiLoomJob
  */
-public class MoiraLoom implements AutoCloseable {
+public class MoiraiLoom implements AutoCloseable {
 
     private int maxConcurrentJobs;
 
     private int maxPendingJobs;
 
-    private final Logger logger = Logger.getLogger(MoiraLoom.class.getName());
+    private final Logger logger = Logger.getLogger(MoiraiLoom.class.getName());
 
     private ExecutorService executorService;
 
@@ -148,7 +148,7 @@ public class MoiraLoom implements AutoCloseable {
 
     Semaphore maxPendingJobsSemaphore;
 
-    private final String moiraLoomName;
+    private final String moiraiLoomName;
 
     private boolean useDetailedErrorLogging;
 
@@ -156,8 +156,8 @@ public class MoiraLoom implements AutoCloseable {
 
     private Consumer<Throwable> failureHandler;
 
-    public MoiraLoom(String moiraLoomName) {
-        this.moiraLoomName = moiraLoomName;
+    public MoiraiLoom(String moiraiLoomName) {
+        this.moiraiLoomName = moiraiLoomName;
     }
 
     /**
@@ -170,9 +170,9 @@ public class MoiraLoom implements AutoCloseable {
      * of maxConcurrentJobsSemaphore permits rather than the number of threads created.</p>
      *
      * @param maxConcurrentJobs the maximum number of concurrent jobs
-     * @return this MoiraLoom instance for method chaining
+     * @return this MoiraiLoom instance for method chaining
      */
-    public synchronized MoiraLoom maxConcurrentJobs(int maxConcurrentJobs) {
+    public synchronized MoiraiLoom maxConcurrentJobs(int maxConcurrentJobs) {
         if (!built.get()) {
             this.maxConcurrentJobs = maxConcurrentJobs;
             return this;
@@ -201,7 +201,7 @@ public class MoiraLoom implements AutoCloseable {
      * @throws IllegalStateException if this instance has already
      *         been built
      */
-    public synchronized MoiraLoom maxPendingJobs(int maxPendingJobs) {
+    public synchronized MoiraiLoom maxPendingJobs(int maxPendingJobs) {
         if (!built.get()) {
             this.maxPendingJobs= maxPendingJobs;
             return this;
@@ -213,17 +213,17 @@ public class MoiraLoom implements AutoCloseable {
     /**
      * Enables or disables virtual thread execution.
      *
-     * <p>When enabled, MoiraLoom creates an executor using
+     * <p>When enabled, MoiraiLoom creates an executor using
      * {@link Executors#newVirtualThreadPerTaskExecutor()}.</p>
      *
-     * <p>When disabled, MoiraLoom uses a fixed thread pool
+     * <p>When disabled, MoiraiLoom uses a fixed thread pool
      * configured by {@link #maxConcurrentJobs(int)}.</p>
      *
      * @param useVirtualThreads true to enable virtual threads,
      *                          false to use platform threads
-     * @return this MoiraLoom instance for method chaining
+     * @return this MoiraiLoom instance for method chaining
      */
-    public synchronized MoiraLoom useVirtualThreads(boolean useVirtualThreads) {
+    public synchronized MoiraiLoom useVirtualThreads(boolean useVirtualThreads) {
         if (!built.get()) {
             this.useVirtualThreads = useVirtualThreads;
             return this;
@@ -272,11 +272,11 @@ public class MoiraLoom implements AutoCloseable {
      * one job's future does not wait for other submitted jobs.</p>
      *
      * @return a statistics snapshot
-     * @see MoiraLoomStats
+     * @see MoiraiLoomStats
      */
-    public MoiraLoomStats getStats() {
-        return new MoiraLoomStats(
-                    moiraLoomName,
+    public MoiraiLoomStats getStats() {
+        return new MoiraiLoomStats(
+                    moiraiLoomName,
                     jobsCurrentlyRunning.get(),
                     maxConcurrentJobs,
                     useVirtualThreads,
@@ -297,9 +297,9 @@ public class MoiraLoom implements AutoCloseable {
      *     <li>Failure cause</li>
      * </ul>
      * @param useDetailedErrorLogging Boolean
-     * @return MoiraLoom object with the useDetailedErrorLogging field edited.
+     * @return MoiraiLoom object with the useDetailedErrorLogging field edited.
      */
-    public synchronized MoiraLoom useDetailedErrorLogging(boolean useDetailedErrorLogging) {
+    public synchronized MoiraiLoom useDetailedErrorLogging(boolean useDetailedErrorLogging) {
         if (!built.get()) {
             this.useDetailedErrorLogging = useDetailedErrorLogging;
             return this;
@@ -312,9 +312,9 @@ public class MoiraLoom implements AutoCloseable {
      * A way for users to implement custom logic if the task fails, ie: stop hosting on a port,
      * stop running a database query, etc. The handler is then accepted in a private method in this class
      * which runs when the task / job fails which then runs handler.accept(failure)
-     * @return MoiraLoom object with the taskFailureJob edited
+     * @return MoiraiLoom object with the taskFailureJob edited
      */
-    public synchronized MoiraLoom onTaskFailure(Consumer<Throwable> handler) {
+    public synchronized MoiraiLoom onTaskFailure(Consumer<Throwable> handler) {
         if (built.get()) {
             throw new IllegalStateException("Please set .onTaskFailure() before calling .build()");
         }
@@ -380,16 +380,16 @@ public class MoiraLoom implements AutoCloseable {
      * @throws ArithmeticException if the combined admission capacity
      *         exceeds {@link Integer#MAX_VALUE}
      *
-     * @see #submit(MoiraLoomJob)
+     * @see #submit(MoiraiLoomJob)
      * @see #submit(Callable)
      * @see #close()
      */
-    public synchronized MoiraLoom build() {
+    public synchronized MoiraiLoom build() {
 
         // Prevent multiple build calls
         if (built.get()) {
             throw new IllegalStateException(
-                    "You cannot call build more than once per MoiraLoom initialization"
+                    "You cannot call build more than once per MoiraiLoom initialization"
             );
         }
 
@@ -415,7 +415,7 @@ public class MoiraLoom implements AutoCloseable {
                     maxConcurrentJobs,
                     Thread.ofPlatform()
                             .daemon(true)
-                            .name("moiraLoom-", 0)
+                            .name("moiraiLoom-", 0)
                             .factory()
             );
         }
@@ -430,11 +430,11 @@ public class MoiraLoom implements AutoCloseable {
 
         // Register a JVM shutdown hook
         shutdownHook = new Thread(() -> {
-            logger.info("Shutting down MoiraLoom");
+            logger.info("Shutting down MoiraiLoom");
 
             shutdownExecutor();
 
-            logger.info("MoiraLoom shutdown complete");
+            logger.info("MoiraiLoom shutdown complete");
         });
 
         Runtime.getRuntime().addShutdownHook(shutdownHook);
@@ -459,7 +459,7 @@ public class MoiraLoom implements AutoCloseable {
      * <h3>Example</h3>
      *
      * <pre>{@code
-     * Future<?> future = moiraLoom.submit(() -> {
+     * Future<?> future = moiraiLoom.submit(() -> {
      *     System.out.println("Running a background job");
      * });
      * }</pre>
@@ -475,7 +475,7 @@ public class MoiraLoom implements AutoCloseable {
      * @see #submit(Callable)
      * @see Future
      */
-    public Future<?> submit(MoiraLoomJob job) {
+    public Future<?> submit(MoiraiLoomJob job) {
         Objects.requireNonNull(job, "job");
 
         Callable<Void> callable = () -> {
@@ -544,7 +544,7 @@ public class MoiraLoom implements AutoCloseable {
      * <h3>Example</h3>
      *
      * <pre>{@code
-     * Future<Integer> future = moiraLoom.submit(() -> {
+     * Future<Integer> future = moiraiLoom.submit(() -> {
      *     int subtotal = 120;
      *     int shipping = 15;
      *     return subtotal + shipping;
@@ -572,7 +572,7 @@ public class MoiraLoom implements AutoCloseable {
      * @throws RejectedExecutionException if admission capacity is
      *         exhausted or the executor no longer accepts work
      *
-     * @see #submit(MoiraLoomJob)
+     * @see #submit(MoiraiLoomJob)
      * @see Callable
      * @see Future
      */
@@ -587,7 +587,7 @@ public class MoiraLoom implements AutoCloseable {
 
         if (!maxPendingJobsSemaphore.tryAcquire()) {
             throw new RejectedExecutionException(
-                    "MoiraLoom job capacity is full"
+                    "MoiraiLoom job capacity is full"
             );
         }
 
