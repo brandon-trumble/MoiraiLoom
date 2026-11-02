@@ -281,6 +281,8 @@ public class MoiraLoom implements AutoCloseable {
                     maxConcurrentJobs,
                     useVirtualThreads,
                     jobsCompleted.get(),
+                    jobsFailed.get(),
+                    jobsPending.get(),
                     jobsFailed.get()
             );
     }

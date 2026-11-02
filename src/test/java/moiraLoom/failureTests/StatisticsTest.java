@@ -25,7 +25,7 @@ public class StatisticsTest {
 
         MoiraLoomStats moiraLoomStats = moiraLoom.getStats();
 
-        String expectedStats = "MoiraLoomStats[moiraLoomName=statisticsTest, currentRunningJobs=0, maxConcurrentJobs=2, isVirtualThread=false, totalCompletedJobs=1, totalFailedJobs=0]";
+        String expectedStats = "MoiraLoomStats[moiraLoomName=statisticsTest, currentRunningJobs=0, maxConcurrentJobs=2, isVirtualThread=false, totalCompletedJobs=1, totalFailedJobs=0, totalJobsPending=0, totalJobsCanceled=0]";
 
         assert(moiraLoomStats.toString().equals(expectedStats));
 
@@ -42,7 +42,9 @@ public class StatisticsTest {
 
         MoiraLoomStats moiraLoomStats1 = moiraLoom1.getStats();
 
-        String expectedNonBlockStats = "MoiraLoomStats[moiraLoomName=nonBlockedStatisticsTest, currentRunningJobs=0, maxConcurrentJobs=2, isVirtualThread=false, totalCompletedJobs=0, totalFailedJobs=0]";
+        System.out.println(moiraLoomStats1);
+
+        String expectedNonBlockStats = "MoiraLoomStats[moiraLoomName=nonBlockedStatisticsTest, currentRunningJobs=0, maxConcurrentJobs=2, isVirtualThread=false, totalCompletedJobs=0, totalFailedJobs=0, totalJobsPending=1, totalJobsCanceled=0]";
 
         assert(moiraLoomStats1.toString().equals(expectedNonBlockStats));
 

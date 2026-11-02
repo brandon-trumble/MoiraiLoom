@@ -11,6 +11,10 @@ public record MoiraLoomStats(
 
         int totalCompletedJobs,
 
-        int totalFailedJobs
+        int totalFailedJobs,
+
+        int totalJobsPending,
+
+        int totalJobsCanceled
 ) {
 }
