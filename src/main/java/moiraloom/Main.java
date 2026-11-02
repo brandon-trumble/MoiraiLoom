@@ -1,33 +1,48 @@
 package moiraloom;
 
 import moiraloom.moiraloom.MoiraLoom;
-import moiraloom.moiraloom.TestClass;
+import moiraloom.moiraloom.MoiraLoomJob;
 
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
 public class Main {
+
     public static void main(String[] args) {
 
-       MoiraLoom moiraLoom = new MoiraLoom("mainClassThreads")
+        // Configure and build MoiraLoom
+        MoiraLoom moiraLoom = new MoiraLoom("mainClassThreads")
                 .maxConcurrentJobs(2)
                 .maxPendingJobs(10)
+                .useVirtualThreads(true)
                 .useDetailedErrorLogging(true)
+                .onTaskFailure(error -> {
+                    System.err.println("Job failed: " + error.getMessage());
+                })
                 .build();
 
-       TestClass testClass = new TestClass();
+        // submit a test job
+        moiraLoom.submit(() -> {
+            System.out.println("Test job");
+        });
 
 
-       try {
-           moiraLoom.submit(() -> {
-               System.out.println("stat test");
-           }).get();
-
-           System.out.println(moiraLoom.getStats());
-       } catch (Exception ignore) {
-
-       }
+        // test class job
+        TestJob testJob = new TestJob();
 
 
-       moiraLoom.close();
+        // submit a preset class(MoiraLoomJob implementation)
+        moiraLoom.submit(testJob);
+
+        moiraLoom.close();
+
+    }
+
+    private static class TestJob implements MoiraLoomJob {
+
+        @Override
+        public void run() {
+            // do something
+        }
     }
 }
