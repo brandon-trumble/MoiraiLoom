@@ -108,9 +108,9 @@ import java.util.logging.Logger;
  * {@link Executors#newVirtualThreadPerTaskExecutor()}.
  * Otherwise, it uses a fixed thread pool.</p>
  *
- * <p>With virtual threads, the semaphore limits concurrent job
- * execution but does not limit the number of virtual threads
- * created or waiting for permits.</p>
+ * <p>With virtual threads, the execution semaphore limits concurrent
+ * job bodies. Admission capacity remains reserved for workers that
+ * have started, including cancelled workers still waiting for permits.</p>
  *
  * <p>A JVM shutdown hook is registered during
  * {@link #build()} to request executor shutdown when the
@@ -361,10 +361,10 @@ public class MoiraLoom implements AutoCloseable {
      * Platform-thread mode uses a fixed pool of daemon threads
      * sized according to {@link #maxConcurrentJobs(int)}.</p>
      *
-     * <p>The shutdown hook calls {@link ExecutorService#close()}.
-     * This normally waits for accepted work to finish, but does not
-     * provide durable storage or protection against abrupt process
-     * termination.</p>
+     * <p>The shutdown hook uses the same executor shutdown procedure
+     * as {@link #close()}. This normally waits for accepted work to
+     * finish, but does not provide durable storage or protection
+     * against abrupt process termination.</p>
      *
      * <p>This method must complete successfully before jobs can be
      * submitted. An instance cannot be built again after a successful
@@ -393,14 +393,14 @@ public class MoiraLoom implements AutoCloseable {
 
         // Validate concurrency configuration
         if (maxConcurrentJobs <= 0) {
-            throw new IllegalArgumentException(
+            throw new IllegalStateException(
                     "maxConcurrentJobs must be greater than zero"
             );
         }
 
         // Validate pending task configuration
-        if (maxPendingJobs < 0) {
-            throw new IllegalArgumentException(
+        if (maxPendingJobs <= 0) {
+            throw new IllegalStateException(
                     "maxPendingJobs cannot be negative"
             );
         }
@@ -430,7 +430,7 @@ public class MoiraLoom implements AutoCloseable {
         shutdownHook = new Thread(() -> {
             logger.info("Shutting down MoiraLoom");
 
-            executorService.close();
+            shutdownExecutor();
 
             logger.info("MoiraLoom shutdown complete");
         });
@@ -529,13 +529,15 @@ public class MoiraLoom implements AutoCloseable {
      * Requesting interruption does not guarantee that executing
      * job code stops; the job must cooperate with interruption.</p>
      *
-     * <p>Cancellation cleanup returns admission capacity when it
-     * claims a still-pending job. Once execution has claimed the job,
-     * its capacity remains reserved until execution cleanup runs.</p>
+     * <p>Cancellation returns admission capacity immediately if the
+     * worker has not started. Once a worker starts, its capacity stays
+     * reserved until that worker exits, even if its future is cancelled
+     * before the job body begins.</p>
      *
      * <p>With virtual threads, cancelling without interruption can
      * leave an already-waiting worker blocked until an execution
-     * permit becomes available.</p>
+     * permit becomes available. Its job body is skipped, and its
+     * admission capacity remains reserved while it waits.</p>
      *
      * <h3>Example</h3>
      *
@@ -590,12 +592,12 @@ public class MoiraLoom implements AutoCloseable {
         jobsPending.incrementAndGet();
 
         AtomicBoolean pending = new AtomicBoolean(true);
+        AtomicBoolean workerClaimed = new AtomicBoolean(false);
 
-        // Return capacity only if execution has not claimed this job.
+        // Mark pending work as claimed so cancellation can prevent its job body from running.
         Runnable releasePending = () -> {
             if (pending.compareAndSet(true, false)) {
                 jobsPending.decrementAndGet();
-                maxPendingJobsSemaphore.release();
             }
         };
 
@@ -632,7 +634,6 @@ public class MoiraLoom implements AutoCloseable {
             } finally {
                 if (started) {
                     jobsCurrentlyRunning.decrementAndGet();
-                    maxPendingJobsSemaphore.release();
                 } else {
                     releasePending.run();
                 }
@@ -643,6 +644,22 @@ public class MoiraLoom implements AutoCloseable {
             }
         }) {
             @Override
+            public void run() {
+                // Execution and pre-start cancellation compete to own capacity cleanup.
+                if (!workerClaimed.compareAndSet(false, true)) {
+                    return;
+                }
+
+                try {
+                    super.run();
+                } finally {
+                    // FutureTask may skip its callable if cancellation won the startup race.
+                    releasePending.run();
+                    maxPendingJobsSemaphore.release();
+                }
+            }
+
+            @Override
             protected void done() {
                 if (isCancelled()) {
                     jobsCancelled.incrementAndGet();
@@ -650,6 +667,11 @@ public class MoiraLoom implements AutoCloseable {
 
                     if (executorService instanceof ThreadPoolExecutor pool) {
                         pool.remove(this);
+                    }
+
+                    // A started worker keeps its admission permit until run() exits.
+                    if (workerClaimed.compareAndSet(false, true)) {
+                        maxPendingJobsSemaphore.release();
                     }
                 }
             }
@@ -660,21 +682,52 @@ public class MoiraLoom implements AutoCloseable {
             return task;
 
         } catch (RuntimeException | Error e) {
-            releasePending.run();
+            if (workerClaimed.compareAndSet(false, true)) {
+                releasePending.run();
+                maxPendingJobsSemaphore.release();
+            }
             throw e;
+        }
+    }
+
+    private void shutdownExecutor() {
+        boolean interrupted = false;
+        executorService.shutdown();
+
+        try {
+            while (!executorService.isTerminated()) {
+                try {
+                    executorService.awaitTermination(1, TimeUnit.DAYS);
+                } catch (InterruptedException e) {
+                    if (!interrupted) {
+                        interrupted = true;
+                        // Drained tasks will never run, so their futures must be cancelled here.
+                        for (Runnable queuedTask : executorService.shutdownNow()) {
+                            if (queuedTask instanceof Future<?> future) {
+                                future.cancel(false);
+                            }
+                        }
+                    }
+                }
+            }
+        } finally {
+            if (interrupted) {
+                Thread.currentThread().interrupt();
+            }
         }
     }
 
     /**
      * Stops accepting new jobs and waits for executor termination.
      *
-     * <p>Delegates to {@link ExecutorService#close()}, which normally
-     * allows previously accepted work to finish before returning.</p>
+     * <p>Normally allows previously accepted work to finish before
+     * returning.</p>
      *
      * <p>If the calling thread is interrupted while waiting, the
-     * executor attempts to interrupt executing work and does not
-     * execute work still awaiting execution. It continues waiting
-     * for termination and restores the caller's interrupt status.</p>
+     * executor attempts to interrupt executing work. Tasks drained
+     * from the executor queue are explicitly cancelled so their futures
+     * cannot remain incomplete. This method continues waiting for
+     * termination and restores the caller's interrupt status.</p>
      *
      * <p>This method has no timeout. Jobs that do not terminate can
      * prevent it from returning. Do not call this method from a job
@@ -699,7 +752,7 @@ public class MoiraLoom implements AutoCloseable {
             );
         }
 
-        executorService.close();
+        shutdownExecutor();
 
         try {
             Runtime.getRuntime().removeShutdownHook(shutdownHook);
