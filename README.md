@@ -35,7 +35,15 @@ You can then add it to another Maven project's `pom.xml`, inside its
 
 ## Usage
 
-Save this example as `Main.java` in a project using MoiraiLoom:
+Use either example as your `Main.java`.
+
+Both submit a lambda and a reusable job class, then wait for both jobs
+before reading the statistics.
+
+### Try-with-resources example
+
+Try-with-resources calls `close()` automatically when the block ends,
+including when an exception occurs.
 
 ```java
 import moirailoom.moirailoom.MoiraiLoom;
@@ -46,9 +54,65 @@ import java.util.concurrent.Future;
 
 public class Main {
 
-    // This example does not use try-with-resource as it's an optional
-    // way to use the library.
-    // However it is a good way to organize and build your code base
+    public static void main(String[] args) {
+
+        // Configure MoiraiLoom and close it automatically
+        try (MoiraiLoom moiraiLoom = new MoiraiLoom("mainClassThreads")
+                .maxConcurrentJobs(2)
+                .maxPendingJobs(10)
+                .useVirtualThreads(true)
+                .useDetailedErrorLogging(true)
+                .onTaskFailure(error -> {
+                    System.err.println("Job failed: " + error.getMessage());
+                })
+                .build()) {
+
+            // Submit a job using a lambda
+            Future<?> future = moiraiLoom.submit(() -> {
+                System.out.println("Executing a background job");
+            });
+
+            // Submit a reusable job class
+            TestJob testJob = new TestJob();
+            Future<?> testJobFuture = moiraiLoom.submit(testJob);
+
+            // Wait for both jobs before reading their statistics
+            future.get();
+            testJobFuture.get();
+
+            System.out.println(moiraiLoom.getStats());
+
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } catch (ExecutionException e) {
+            System.err.println("Job failed: " + e.getCause());
+        }
+    }
+
+    private static class TestJob implements MoiraiLoomJob {
+
+        @Override
+        public void run() {
+            System.out.println("Executing a reusable job");
+        }
+    }
+}
+```
+
+### Explicit close example
+
+You can also manage shutdown yourself. Calling `close()` in a `finally`
+block ensures the executor is closed if waiting for a job fails.
+
+```java
+import moirailoom.moirailoom.MoiraiLoom;
+import moirailoom.moirailoom.MoiraiLoomJob;
+
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+
+public class Main {
+
     public static void main(String[] args) {
 
         // Configure and build MoiraiLoom
@@ -62,46 +126,48 @@ public class Main {
                 })
                 .build();
 
-        // submit a test job
-        moiraiLoom.submit(() -> {
-            System.out.println("Test job");
-        });
+        try {
+            // Submit a job using a lambda
+            Future<?> future = moiraiLoom.submit(() -> {
+                System.out.println("Executing a background job");
+            });
 
+            // Submit a reusable job class
+            TestJob testJob = new TestJob();
+            Future<?> testJobFuture = moiraiLoom.submit(testJob);
 
-        // test class job
-        TestJob testJob = new TestJob();
+            // Wait for both jobs before reading their statistics
+            future.get();
+            testJobFuture.get();
 
+            System.out.println(moiraiLoom.getStats());
 
-        // submit a preset class(MoiraiLoomJob implementation)
-        moiraiLoom.submit(testJob);
-
-        moiraiLoom.close();
-        
-        // if you want the stats of the current running jobs
-        // create a Future and call .get() and then call 
-        // .getStats()
-
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } catch (ExecutionException e) {
+            System.err.println("Job failed: " + e.getCause());
+        } finally {
+            // Close the executor even if waiting for a job fails
+            moiraiLoom.close();
+        }
     }
 
     private static class TestJob implements MoiraiLoomJob {
 
         @Override
         public void run() {
-            // do something
+            System.out.println("Executing a reusable job");
         }
     }
 }
 ```
 
-This example submits two jobs: a reusable `MoiraiLoomJob` and a lambda that
-returns a value.
-
 `submit()` returns a `Future` without waiting for the job to finish.
-Calling `get()` waits for that job and returns its result. Jobs without
-a return value produce `null`.
+Calling `get()` waits for that particular job.
 
-The try-with-resources block closes MoiraiLoom when it ends, waiting for
-accepted work to finish.
+These jobs do not return values, so their `get()` calls return `null`.
+For a job that produces a result, use the `Callable<T>` overload, which
+returns a `Future<T>`.
 
 ## Configuration
 
