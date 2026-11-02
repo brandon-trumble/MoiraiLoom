@@ -7,6 +7,8 @@ It provides a small API for submitting work, getting results, handling
 failures, and checking job statistics. Jobs can run on a fixed pool of
 platform threads or on virtual threads.
 
+The name combines the Greek [Moirai](https://en.wikipedia.org/wiki/Moirai), the three Fates who spin, measure, and cut the thread of life, with a loom, which weaves threads into fabric.
+
 ## Building
 
 You need Java 21 or newer and Maven.
