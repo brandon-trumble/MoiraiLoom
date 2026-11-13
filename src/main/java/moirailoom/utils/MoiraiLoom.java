@@ -1,6 +1,6 @@
-package moirailoom.moirailoom;
+package moirailoom.utils;
 
-import moirailoom.moirailoom.domain.MoiraiLoomStats;
+import moirailoom.utils.domain.MoiraiLoomStats;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.concurrent.*;
@@ -257,12 +257,27 @@ public class MoiraiLoom implements AutoCloseable {
     }
 
     /**
+     * Basic getter for total canceled jobs
+     * @return the value of the AtomicInteger jobsCanceled
+     */
+    public int getTotalCanceledJobs() {
+        return this.jobsCancelled.get();
+    }
+
+    /**
+     * Basic getter for total pending jobs.
+     * @return the value of the AtomicInteger jobsPending
+     */
+    public int getTotalJobsPending() {
+        return this.jobsPending.get();
+    }
+
+    /**
      * Returns a best-effort snapshot of this instance's statistics.
      *
      * <p>The snapshot contains the instance name, concurrency limit,
-     * execution mode, running-job count, completed-job count, and
-     * failed-job count. Pending and canceled counts are not included
-     * in the current statistics object.</p>
+     * execution mode, and counts for running, completed, failed,
+     * pending, and canceled jobs.</p>
      *
      * <p>Counters are read independently while other threads may
      * update them. The returned values therefore do not necessarily
@@ -283,7 +298,7 @@ public class MoiraiLoom implements AutoCloseable {
                     jobsCompleted.get(),
                     jobsFailed.get(),
                     jobsPending.get(),
-                    jobsFailed.get()
+                    jobsCancelled.get()
             );
     }
 
@@ -374,9 +389,8 @@ public class MoiraiLoom implements AutoCloseable {
      *
      * @return this initialized instance
      * @throws IllegalStateException if this instance has already
-     *         been built
-     * @throws IllegalArgumentException if {@code maxConcurrentJobs}
-     *         is not positive or {@code maxPendingJobs} is negative
+     *         been built, if {@code maxConcurrentJobs} is less than one,
+     *         or if {@code maxPendingJobs} is negative
      * @throws ArithmeticException if the combined admission capacity
      *         exceeds {@link Integer#MAX_VALUE}
      *
@@ -400,11 +414,8 @@ public class MoiraiLoom implements AutoCloseable {
             );
         }
 
-        // Validate pending task configuration
-        if (maxPendingJobs <= 0) {
-            throw new IllegalStateException(
-                    "maxPendingJobs cannot be negative"
-            );
+        if (maxPendingJobs < 0) {
+            throw new IllegalStateException("maxPendingJobs cannot be negative");
         }
 
         // Initialize the appropriate executor
@@ -456,7 +467,7 @@ public class MoiraiLoom implements AutoCloseable {
      * the same capacity limits, failure handling, and cancellation
      * behavior.</p>
      *
-     * <h3>Example</h3>
+     * <h4>Example</h4>
      *
      * <pre>{@code
      * Future<?> future = moiraiLoom.submit(() -> {
@@ -493,7 +504,7 @@ public class MoiraiLoom implements AutoCloseable {
      * an executor-managed thread. This method returns a {@link Future}
      * without waiting for the job to finish.</p>
      *
-     * <h3>Capacity and concurrency</h3>
+     * <h4>Capacity and concurrency</h4>
      *
      * <p>Total admission capacity is the sum of
      * {@link #maxConcurrentJobs(int) maxConcurrentJobs} and
@@ -505,12 +516,14 @@ public class MoiraiLoom implements AutoCloseable {
      * the job. No more than {@code maxConcurrentJobs} job bodies may
      * execute simultaneously.</p>
      *
-     * <h3>Results and failures</h3>
+     * <h4>Results and failures</h4>
      *
      * <p>Calling {@link Future#get() get()} waits for completion and
      * returns the value produced by the job, which may be {@code null}.
      * An execution failure is reported through an
-     * {@link ExecutionException}, unless the future was cancelled.</p>
+     * {@link ExecutionException}, unless the future was cancelled.
+     * The job returns its admission permit before the future publishes
+     * a result or an execution failure.</p>
      *
      * <p>Execution failures are not thrown directly to the thread
      * that called this submission method.</p>
@@ -525,7 +538,7 @@ public class MoiraiLoom implements AutoCloseable {
      * can replace the original execution failure reported by
      * the future.</p>
      *
-     * <h3>Cancellation</h3>
+     * <h4>Cancellation</h4>
      *
      * <p>The returned future supports {@link Future#cancel(boolean)}.
      * Requesting interruption does not guarantee that executing
@@ -533,15 +546,15 @@ public class MoiraiLoom implements AutoCloseable {
      *
      * <p>Cancellation returns admission capacity immediately if the
      * worker has not started. Once a worker starts, its capacity stays
-     * reserved until that worker exits, even if its future is cancelled
-     * before the job body begins.</p>
+     * reserved until it finishes running the job or skips it because
+     * of cancellation.</p>
      *
      * <p>With virtual threads, cancelling without interruption can
      * leave an already-waiting worker blocked until an execution
      * permit becomes available. Its job body is skipped, and its
      * admission capacity remains reserved while it waits.</p>
      *
-     * <h3>Example</h3>
+     * <h4>Example</h4>
      *
      * <pre>{@code
      * Future<Integer> future = moiraiLoom.submit(() -> {
@@ -645,6 +658,29 @@ public class MoiraiLoom implements AutoCloseable {
                 }
             }
         }) {
+            // Accessed only by the worker running this task.
+            private boolean workerAdmissionReleased;
+
+            private void releaseWorkerAdmission() {
+                if (!workerAdmissionReleased) {
+                    workerAdmissionReleased = true;
+                    releasePending.run();
+                    maxPendingJobsSemaphore.release();
+                }
+            }
+
+            @Override
+            protected void set(T result) {
+                releaseWorkerAdmission();
+                super.set(result);
+            }
+
+            @Override
+            protected void setException(Throwable failure) {
+                releaseWorkerAdmission();
+                super.setException(failure);
+            }
+
             @Override
             public void run() {
                 // Execution and pre-start cancellation compete to own capacity cleanup.
@@ -655,9 +691,8 @@ public class MoiraiLoom implements AutoCloseable {
                 try {
                     super.run();
                 } finally {
-                    // FutureTask may skip its callable if cancellation won the startup race.
-                    releasePending.run();
-                    maxPendingJobsSemaphore.release();
+                    // Cancellation can skip the callable and both completion methods.
+                    releaseWorkerAdmission();
                 }
             }
 
@@ -671,7 +706,7 @@ public class MoiraiLoom implements AutoCloseable {
                         pool.remove(this);
                     }
 
-                    // A started worker keeps its admission permit until run() exits.
+                    // A started worker releases its own admission permit.
                     if (workerClaimed.compareAndSet(false, true)) {
                         maxPendingJobsSemaphore.release();
                     }

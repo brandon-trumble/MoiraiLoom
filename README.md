@@ -46,8 +46,8 @@ Try-with-resources calls `close()` automatically when the block ends,
 including when an exception occurs.
 
 ```java
-import moirailoom.moirailoom.MoiraiLoom;
-import moirailoom.moirailoom.MoiraiLoomJob;
+import moirailoom.utils.MoiraiLoom;
+import moirailoom.utils.MoiraiLoomJob;
 
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -105,8 +105,8 @@ You can also manage shutdown yourself. Calling `close()` in a `finally`
 block ensures the executor is closed if waiting for a job fails.
 
 ```java
-import moirailoom.moirailoom.MoiraiLoom;
-import moirailoom.moirailoom.MoiraiLoomJob;
+import moirailoom.utils.MoiraiLoom;
+import moirailoom.utils.MoiraiLoomJob;
 
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -181,8 +181,8 @@ Set your options before calling `build()`.
 | `useDetailedErrorLogging(boolean)`   | Enables detailed failure logs.       |
 | `onTaskFailure(Consumer<Throwable>)` | Registers a failure callback.        |
 
-Both capacity settings must be greater than zero in the current
-implementation.
+`maxConcurrentJobs` must be positive. `maxPendingJobs` defaults to zero
+and accepts non-negative values.
 
 Configuration cannot be changed after `build()`. Each instance can only
 be built once, including after it has been closed.
@@ -252,6 +252,8 @@ Call `getStats()` for a snapshot, or read individual counters using:
 - `getCurrentRunningJobs()`
 - `getTotalCompletedJobs()`
 - `getTotalFailedJobs()`
+- `getTotalCanceledJobs()`
+- `getTotalJobsPending()`
 
 Statistics can change while jobs are running. Snapshot fields are read
 independently and may reflect slightly different moments.
@@ -265,9 +267,9 @@ interrupt its worker if it has started.
 
 Job code must cooperate with interruption for it to stop.
 
-Calling `cancel(false)` does not interrupt the worker. If the worker has
-already started, its admission capacity remains reserved until it exits.
-This includes virtual workers waiting for an execution permit.
+Calling `cancel(false)` does not interrupt the worker. A started worker
+keeps its admission permit while it is running the job or waiting for an
+execution permit.
 
 Calling `get()` on a canceled future throws `CancellationException`.
 

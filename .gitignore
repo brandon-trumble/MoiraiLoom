@@ -39,4 +39,4 @@ build/
 .DS_Store
 
 # for my local testing
-/src/main/java/moirailoom/Main.java
+examples/*

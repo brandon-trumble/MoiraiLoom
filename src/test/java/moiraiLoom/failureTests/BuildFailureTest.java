@@ -1,6 +1,6 @@
 package moiraiLoom.failureTests;
 
-import moirailoom.moirailoom.MoiraiLoom;
+import moirailoom.utils.MoiraiLoom;
 import org.junit.Test;
 
 import static org.junit.Assert.assertThrows;
@@ -19,8 +19,9 @@ public class BuildFailureTest {
         });
 
         assertThrows(IllegalStateException.class, () -> {
-           MoiraiLoom moiraiLoom = new MoiraiLoom("moiraiLoomMaxPendingNotSet")
+           MoiraiLoom moiraiLoom = new MoiraiLoom("moiraiLoomMaxPendingNegative")
                    .maxConcurrentJobs(2)
+                   .maxPendingJobs(-1)
                    .build();
 
            moiraiLoom.close();

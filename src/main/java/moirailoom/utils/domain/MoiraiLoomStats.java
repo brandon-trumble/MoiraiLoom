@@ -1,4 +1,4 @@
-package moirailoom.moirailoom.domain;
+package moirailoom.utils.domain;
 
 public record MoiraiLoomStats(
         String moiraiLoomName,

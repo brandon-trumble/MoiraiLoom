@@ -1,6 +1,6 @@
 package moiraiLoom.futureReturnTests;
 
-import moirailoom.moirailoom.MoiraiLoom;
+import moirailoom.utils.MoiraiLoom;
 import org.junit.Test;
 
 import java.util.concurrent.ExecutionException;

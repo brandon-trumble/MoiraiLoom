@@ -1,7 +1,7 @@
 package moiraiLoom.failureTests;
 
-import moirailoom.moirailoom.MoiraiLoom;
-import moirailoom.moirailoom.domain.MoiraiLoomStats;
+import moirailoom.utils.MoiraiLoom;
+import moirailoom.utils.domain.MoiraiLoomStats;
 import org.junit.Test;
 
 public class StatisticsTest {

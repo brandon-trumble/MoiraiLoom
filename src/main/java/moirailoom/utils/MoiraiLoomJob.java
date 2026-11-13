@@ -1,4 +1,4 @@
-package moirailoom.moirailoom;
+package moirailoom.utils;
 
 /**
  * Represents a job that can be submitted to MoiraiLoom for execution.

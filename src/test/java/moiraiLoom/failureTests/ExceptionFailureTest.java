@@ -1,7 +1,7 @@
 package moiraiLoom.failureTests;
 
-import moirailoom.moirailoom.MoiraiLoom;
-import moirailoom.moirailoom.MoiraiLoomJob;
+import moirailoom.utils.MoiraiLoom;
+import moirailoom.utils.MoiraiLoomJob;
 import org.junit.Test;
 
 import java.util.concurrent.ExecutionException;
